@@ -1,0 +1,299 @@
+:root {
+  color-scheme: dark;
+  font-family: "Press Start 2P", monospace;
+  color: #fff;
+  background: #07070f;
+  --ink: #fff;
+  --muted: #b9bdd0;
+  --cyan: #7ef0ff;
+  --yellow: #ffd23f;
+  --danger: #ff6677;
+  --panel: #11111f;
+  --border: #3b3b57;
+  --focus: #ffd23f;
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  min-height: 100%;
+  background: #07070f;
+}
+body {
+  min-height: 100dvh;
+  margin: 0;
+  padding: max(0.5rem, env(safe-area-inset-top))
+    max(0.5rem, env(safe-area-inset-right))
+    max(0.5rem, env(safe-area-inset-bottom))
+    max(0.5rem, env(safe-area-inset-left));
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 20%, #18182b 0, #07070f 58%);
+}
+button,
+summary {
+  font: inherit;
+}
+button {
+  color: inherit;
+}
+button:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+.skip-link {
+  position: fixed;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+  z-index: 20;
+  padding: 0.75rem;
+  color: #07070f;
+  background: var(--yellow);
+  transform: translateY(-160%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+.site-header {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+main {
+  display: flex;
+  min-height: calc(100dvh - 1rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.game-shell {
+  display: flex;
+  inline-size: 100%;
+  min-block-size: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.canvas-frame {
+  position: relative;
+  display: grid;
+  max-inline-size: 100%;
+  max-block-size: 100%;
+  place-items: center;
+  overflow: hidden;
+  border: 4px solid var(--border);
+  border-radius: 0.5rem;
+  background: #07070f;
+  box-shadow: 0 1.25rem 4rem #000b;
+}
+canvas {
+  display: block;
+  inline-size: min(960px, 100%);
+  block-size: auto;
+  max-block-size: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.loading-panel,
+.error-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: #07070ff2;
+}
+.loading-panel[hidden],
+.error-panel[hidden] {
+  display: none;
+}
+.loading-mark {
+  display: grid;
+  width: 4.5rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 4px solid var(--yellow);
+  color: var(--yellow);
+  box-shadow: 0 0 0.75rem #ffd23f55;
+}
+.loading-panel p,
+.error-panel p {
+  max-inline-size: 45ch;
+  font-size: 0.65rem;
+  line-height: 1.8;
+}
+progress {
+  inline-size: min(24rem, 80%);
+  accent-color: var(--cyan);
+}
+.error-panel h2 {
+  color: var(--danger);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.error-panel button {
+  min-block-size: 48px;
+  padding: 0.8rem 1rem;
+  border: 3px solid var(--yellow);
+  background: #29211a;
+}
+.status {
+  min-block-size: 1.25rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.55rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.touch-controls {
+  display: none;
+  inline-size: 100%;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-block-end: env(safe-area-inset-bottom);
+}
+.control-group {
+  display: flex;
+  gap: 0.5rem;
+}
+.touch-button {
+  display: grid;
+  min-inline-size: 52px;
+  min-block-size: 52px;
+  padding: 0;
+  place-items: center;
+  touch-action: none;
+  user-select: none;
+  border: 3px solid #ffffff70;
+  border-radius: 0.4rem;
+  background: #242438;
+  box-shadow: inset 0 -4px #0008;
+}
+.touch-button.primary {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+.touch-button.utility {
+  min-inline-size: 48px;
+  color: var(--cyan);
+}
+.touch-button[aria-pressed="true"],
+.touch-button:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 -1px #0008;
+  background: #3a3a54;
+}
+.instructions {
+  position: fixed;
+  inset-inline-end: max(0.75rem, env(safe-area-inset-right));
+  inset-block-start: max(0.75rem, env(safe-area-inset-top));
+  z-index: 10;
+  max-inline-size: min(34rem, calc(100vw - 1.5rem));
+  font-size: 0.55rem;
+  line-height: 1.8;
+}
+.instructions summary {
+  cursor: pointer;
+  color: var(--cyan);
+}
+.instructions[open] {
+  padding: 0.8rem;
+  border: 2px solid var(--border);
+  background: var(--panel);
+}
+kbd {
+  padding: 0.15rem 0.3rem;
+  border: 1px solid #74748d;
+  border-radius: 0.2rem;
+  background: #29293d;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .touch-controls {
+    display: flex;
+  }
+  .game-shell {
+    justify-content: flex-start;
+  }
+  .canvas-frame {
+    flex: 1;
+    min-block-size: 0;
+  }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  body {
+    padding-block: max(0.25rem, env(safe-area-inset-top))
+      max(0.25rem, env(safe-area-inset-bottom));
+  }
+  .game-shell {
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+  .canvas-frame {
+    block-size: calc(
+      100dvh -
+      0.5rem -
+      env(safe-area-inset-top) -
+      env(safe-area-inset-bottom)
+    );
+  }
+  canvas {
+    inline-size: min(100%, calc((100dvh - 1rem) * 5 / 3));
+    block-size: auto;
+  }
+  .touch-controls {
+    inline-size: auto;
+    block-size: 100%;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .control-group {
+    display: grid;
+    grid-template-columns: repeat(2, 52px);
+  }
+  .status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .loading-mark {
+    box-shadow: none;
+  }
+}
+@media (forced-colors: active) {
+  .canvas-frame,
+  .touch-button,
+  .error-panel button {
+    border-color: ButtonText;
+  }
+}

@@ -3,3 +3,11 @@
 
 # macOS metadata
 .DS_Store
+
+# Local dependencies and generated verification output
+node_modules/
+dist/
+coverage/
+playwright-results/
+playwright-report/
+test-results/
