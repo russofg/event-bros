@@ -153,3 +153,81 @@ test("exposes semantic instructions, status and accessible controls", async ({
     "Pausar juego",
   );
 });
+
+test("reports an actionable error when the gameplay canvas is unsupported", async ({
+  page,
+}) => {
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (type, options) {
+      if (this.id === "game" && type === "2d") return null;
+      return getContext.call(this, type, options);
+    };
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "Tu navegador no admite el lienzo 2D necesario para jugar",
+  );
+  await expect(page.getByRole("alert")).toContainText(
+    "actualizá el navegador o usá otro compatible",
+  );
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-game-state",
+    "unsupported",
+  );
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "false");
+  await expect(page.getByRole("button", { name: "Reintentar carga" })).toBeHidden();
+  expect(pageErrors).toEqual([]);
+});
+
+test("exposes queryable gameplay decisions and controlled event announcements", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+
+  const state = page.getByRole("region", {
+    name: "Estado accesible de la partida",
+  });
+  const summary = page.getByTestId("gameplay-state");
+  await expect(state).toBeAttached();
+  await expect(summary).toHaveAttribute("aria-live", "off");
+  await expect(summary).toContainText(/Avance: \d+%/);
+  await expect(summary).toContainText("Puntaje: 0");
+  await expect(summary).toContainText("Vidas: 3");
+  await expect(summary).toContainText("Tiempo: 400 segundos");
+  await expect(summary).toContainText(/Peligro cercano:/);
+  await expect(summary).toContainText(/Objetivo:/);
+
+  const announcement = page.getByTestId("game-status");
+  await expect(announcement).toHaveAttribute("aria-live", "polite");
+  await expect(announcement).toHaveAttribute("aria-atomic", "true");
+
+  const initialSummary = await summary.textContent();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => summary.textContent()).not.toBe(initialSummary);
+  const startedSummary = await summary.textContent();
+  await page.evaluate(() => {
+    window.announcementMutations = 0;
+    new MutationObserver(() => {
+      window.announcementMutations++;
+    }).observe(document.querySelector("#game-status"), {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+  });
+  await page.keyboard.down("ArrowRight");
+  await expect.poll(() => summary.textContent()).not.toBe(startedSummary);
+  await page.keyboard.up("ArrowRight");
+  await expect(summary).toContainText(/Estado: jugando/);
+  await expect(summary).toContainText(/Posición:/);
+  await expect(summary).toContainText(/Tiempo: 39\d segundos/);
+  await expect(announcement).toContainText("Partida iniciada");
+  expect(await page.evaluate(() => window.announcementMutations)).toBe(0);
+});

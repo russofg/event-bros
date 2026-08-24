@@ -14,11 +14,13 @@ const loadingProgress = document.querySelector("#loading-progress"),
  errorPanel = document.querySelector("#load-error");
 const errorMessage = document.querySelector("#error-message"),
  statusEl = document.querySelector("#game-status");
+const gameplayStateEl = document.querySelector("#gameplay-state"),
+ retryButton = document.querySelector("#retry");
 const pauseButton = document.querySelector("#bp"),
  muteButton = document.querySelector("#bm");
 const gameShell = document.querySelector(".game-shell"),
  touchControls = document.querySelector("#touch");
-ctx.imageSmoothingEnabled = false;
+if (ctx) ctx.imageSmoothingEnabled = false;
 let resizeFrame = 0,
  lastFit = "";
 function fitRuntime() {
@@ -130,8 +132,114 @@ let bgC,
  bossCells;
 
 /* ========= CARGA + CHROMA + TRIM ROBUSTO ========= */
+let pendingGameplayAnnouncement = "",
+ lastGameplayAnnouncementTick = -60,
+ lastAnnouncedBossState = "";
 function setStatus(message) {
  statusEl.textContent = message;
+}
+function queueGameplayAnnouncement(message) {
+ pendingGameplayAnnouncement = message;
+}
+function directionAndDistance(fromX, targetX) {
+ const blocks = Math.max(0, Math.round(Math.abs(targetX - fromX) / TILE));
+ if (blocks === 0) return "en tu posición";
+ return (targetX > fromX ? "a la derecha" : "a la izquierda") +
+  ", a " +
+  blocks +
+  (blocks === 1 ? " bloque" : " bloques");
+}
+function bossInstruction() {
+ if (!boss || boss.state === "dead") return "";
+ const instructions = {
+  hover: "esquivá y esperá su ataque",
+  telegraph: "alejate del punto de impacto",
+  scream: "saltá las ondas de feedback",
+  slam: "alejate mientras cae",
+  stun: "saltá sobre el jefe ahora",
+  recover: "mantené distancia mientras se recupera",
+ };
+ return (
+  "Jefe: El Feedback, fase " +
+  boss.state +
+  ", " +
+  boss.hp +
+  " impactos restantes; instrucción: " +
+  (instructions[boss.state] || "mantenete alerta") +
+  "."
+ );
+}
+function updateGameplayState() {
+ if (!gameplayStateEl) return;
+ if (!player) {
+  gameplayStateEl.textContent =
+   state === "unsupported"
+    ? "Estado: no compatible. El juego no puede iniciarse en este navegador."
+    : "Estado: cargando. Los datos de juego aparecerán cuando el escenario esté listo.";
+  return;
+ }
+ const stateNames = {
+  title: "listo para empezar",
+  play: "jugando",
+  pause: "en pausa",
+  dying: "perdiste una vida",
+  respawn: "reanudando",
+  gameover: "fin del juego",
+  win: "partida ganada",
+ };
+ const progress = Math.round((player.x / (LW * TILE - player.w)) * 100);
+ const zones = [
+  [25, "montaje inicial"],
+  [50, "recorrido técnico"],
+  [75, "acceso al escenario"],
+  [90, "camino a FOH"],
+  [101, "zona del jefe"],
+ ];
+ const zone = zones.find(([limit]) => progress < limit)?.[1] || "consola FOH";
+ const position = player.crouch
+  ? "agachado"
+  : player.onG
+    ? "en el suelo"
+    : "en el aire";
+ const activeHazards = [
+  ...(foes || []).filter((foe) => !foe.dead && !foe.fly),
+  ...(waves || []),
+ ];
+ if (boss && boss.state !== "dead") activeHazards.push(boss);
+ const nearestHazard = activeHazards.sort(
+  (a, b) => Math.abs(a.x - player.x) - Math.abs(b.x - player.x),
+ )[0];
+ const nextMic = (items || [])
+  .filter((item) => item.t === 0 && !item.taken)
+  .sort((a, b) => Math.abs(a.x - player.x) - Math.abs(b.x - player.x))[0];
+ const hazardText = nearestHazard
+  ? "Peligro cercano: " + directionAndDistance(player.x, nearestHazard.x) + "."
+  : "Peligro cercano: ninguno detectado.";
+ const objectiveText = bossGone
+  ? "Objetivo: entrá a la consola FOH " +
+    directionAndDistance(player.x, goal.x) +
+    "."
+  : nextMic
+    ? "Objetivo: micrófono " + directionAndDistance(player.x, nextMic.x) + "."
+    : "Objetivo: avanzá hacia la consola FOH.";
+ const bossText = bossInstruction();
+ const summary = [
+  "Estado: " + (stateNames[state] || state) + ".",
+  "Avance: " + progress + "%, zona " + zone + ".",
+  "Posición: " + position + ".",
+  "Puntaje: " + score + ".",
+  "Micrófonos: " + mics + ".",
+  "Vidas: " + lives + ".",
+  "Tiempo: " + timer + " segundos.",
+  hazardText,
+  objectiveText,
+  bossText,
+ ].filter(Boolean).join(" ");
+ if (gameplayStateEl.textContent !== summary) gameplayStateEl.textContent = summary;
+ if (boss && boss.state !== "dead" && boss.state !== lastAnnouncedBossState) {
+  lastAnnouncedBossState = boss.state;
+  queueGameplayAnnouncement(bossInstruction());
+ } else if (!boss) lastAnnouncedBossState = "";
 }
 function syncState() {
  document.body.dataset.gameState = state;
@@ -139,6 +247,18 @@ function syncState() {
  document.body.dataset.muted = String(muted);
  pauseButton.setAttribute("aria-pressed", String(state === "pause"));
  muteButton.setAttribute("aria-pressed", String(muted));
+ updateGameplayState();
+}
+function showUnsupportedCanvas() {
+ ready = false;
+ state = "unsupported";
+ loading.hidden = true;
+ errorPanel.hidden = false;
+ retryButton.hidden = true;
+ errorMessage.textContent =
+  "Tu navegador no admite el lienzo 2D necesario para jugar; actualizá el navegador o usá otro compatible.";
+ setStatus("Juego no compatible. No se inició la partida.");
+ syncState();
 }
 function chroma(img) {
  const c = document.createElement("canvas");
@@ -284,6 +404,10 @@ function spr(cn, cx, cy, h) {
  return w;
 }
 async function boot() {
+ if (!ctx) {
+  showUnsupportedCanvas();
+  return;
+ }
  ready = false;
  syncState();
  loading.hidden = false;
@@ -768,6 +892,9 @@ function updItems() {
     mics++;
     score += 200;
     addFloat(it.x, yy, "+200");
+    queueGameplayAnnouncement(
+     "Micrófono reunido. Total: " + mics + ". Puntaje: " + score + ".",
+    );
     SFX.coin();
    } else if (it.t === 3) {
     score += 100;
@@ -1546,6 +1673,15 @@ function update() {
  } else if (state === "title") {
   camX = reducedMotion ? 0 : (tick * 0.6) % (LW * TILE - 960);
  }
+ if (tick % 30 === 0) updateGameplayState();
+ if (
+  pendingGameplayAnnouncement &&
+  tick - lastGameplayAnnouncementTick >= 60
+ ) {
+  setStatus(pendingGameplayAnnouncement);
+  pendingGameplayAnnouncement = "";
+  lastGameplayAnnouncementTick = tick;
+ }
 }
 function loop(now) {
  requestAnimationFrame(loop);
@@ -1650,7 +1786,7 @@ muteButton.addEventListener("click", () => {
  audio();
  toggleMute();
 });
-document.querySelector("#retry")?.addEventListener("click", boot);
+retryButton.addEventListener("click", boot);
 cv.addEventListener("pointerdown", () => {
  audio();
  if (state === "title" || state === "gameover" || state === "win") startNow();
@@ -1669,5 +1805,7 @@ document.addEventListener("visibilitychange", () => {
 });
 if (document.fonts) document.fonts.load('12px "Press Start 2P"');
 syncState();
-requestAnimationFrame(loop);
-boot();
+if (ctx) {
+ requestAnimationFrame(loop);
+ boot();
+} else showUnsupportedCanvas();

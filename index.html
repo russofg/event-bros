@@ -38,7 +38,8 @@
             width="960"
             height="576"
             role="img"
-            aria-label="Escenario de Event Bros. El estado del juego se anuncia debajo."
+            aria-label="Escenario de Event Bros"
+            aria-describedby="instructions gameplay-state"
           ></canvas>
           <div
             id="loading"
@@ -56,11 +57,27 @@
             <button id="retry" type="button">Reintentar carga</button>
           </div>
         </div>
+        <section
+          class="sr-only"
+          role="region"
+          aria-labelledby="gameplay-state-title"
+        >
+          <h3 id="gameplay-state-title">Estado accesible de la partida</h3>
+          <p
+            id="gameplay-state"
+            data-testid="gameplay-state"
+            aria-live="off"
+          >
+            Estado: cargando. Los datos de juego aparecerán cuando el escenario
+            esté listo.
+          </p>
+        </section>
         <p
           id="game-status"
           class="status"
           role="status"
           aria-live="polite"
+          aria-atomic="true"
           data-testid="game-status"
         >
           Cargando el juego.
