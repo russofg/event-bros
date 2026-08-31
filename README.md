@@ -175,3 +175,9 @@ event-bros/
 │   └── e2e/              # Playwright
 └── vite.config.js
 ```
+
+---
+
+## License
+
+Released under the MIT License. See [LICENSE](LICENSE).
