@@ -180,7 +180,9 @@ event-bros/
 
 ## Assets
 
-The pixel art in `public/assets/` was generated with MiniMax M3 and is not taken from a third-party asset pack. Purely AI-generated images may not be copyrightable in every jurisdiction, so treat the MIT grant over the artwork as a statement of intent rather than a transfer of rights that is guaranteed to exist.
+The pixel art in `public/assets/` was generated with MiniMax M3 through the MiniMax API, whose platform terms leave ownership of generated output with the customer. It is not taken from a third-party asset pack and carries no personal-use or non-commercial restriction.
+
+One caveat worth stating plainly: purely AI-generated images may not be copyrightable in every jurisdiction. Treat the MIT grant over the artwork as a statement of intent rather than a transfer of rights that is guaranteed to exist.
 
 ---
 
