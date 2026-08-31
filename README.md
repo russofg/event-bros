@@ -61,7 +61,7 @@ The runtime is deliberately split between orchestration and pure logic, so the p
 | --- | --- |
 | `index.html` | Semantic app shell: loading, error recovery, instructions, touch controls |
 | `src/game.js` | Game runtime — rendering, input, audio, level and boss orchestration |
-| `src/core/assets.js` | Asset loading with progress reporting and failure handling |
+| `src/core/assets.js` | Asset loading with progress reporting, per-asset timeout, and failure handling |
 | `src/core/collision.js` | Deterministic collision resolution |
 | `src/core/layout.js` | Responsive canvas fitting and safe-area math |
 | `src/core/motion.js` | Motion helpers, including reduced-motion behavior |
@@ -83,6 +83,7 @@ Accessibility here is not a checkbox pass — the canvas is unreadable to a scre
 | Announcement noise | Updates are cadence-controlled, so assistive tech is informed without being flooded |
 | Unsupported canvas | Semantic recovery with an actionable message instead of a silent blank frame |
 | Asset failures | Explicit error panel with a working retry, never an infinite spinner |
+| Stalled network | Each asset has a 15s timeout, so a connection that hangs surfaces the same recoverable error instead of an endless loading screen |
 | Reduced motion | `prefers-reduced-motion` is honored dynamically, including camera movement |
 | Keyboard | Skip link, visible focus, and full keyboard play without touch |
 
@@ -154,7 +155,6 @@ Caching `/assets/*` as immutable would permanently pin the artwork: the filename
 
 Tracked deliberately, not hidden:
 
-- Asset loading has no timeout — a stalled network keeps the loader visible.
 - The very first touch input after load can be dropped.
 - Subpath hosting requires the `base` configuration noted above.
 

@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   AssetLoadError,
+  DEFAULT_ASSET_TIMEOUT_MS,
   loadAssetMap,
+  loadImage,
   validateAssets,
 } from "../../src/core/assets.js";
 import { clamp, rectanglesOverlap } from "../../src/core/collision.js";
@@ -122,6 +124,114 @@ describe("asset validation", () => {
       total: 2,
       percent: 100,
     });
+  });
+});
+
+describe("asset load timeouts", () => {
+  class StallingImage {
+    constructor() {
+      this.src = "";
+    }
+  }
+
+  it("gives up on an asset that never settles", async () => {
+    await expect(
+      loadAssetMap(
+        { hero: "/hero.png" },
+        { ImageConstructor: StallingImage, timeoutMs: 10 },
+      ),
+    ).rejects.toMatchObject({ missing: ["hero"] });
+  });
+
+  it("aborts the stalled request instead of leaving it in flight", async () => {
+    const created = [];
+    class TrackedImage extends StallingImage {
+      constructor() {
+        super();
+        created.push(this);
+      }
+    }
+
+    await expect(
+      loadAssetMap(
+        { hero: "/hero.png" },
+        { ImageConstructor: TrackedImage, timeoutMs: 10 },
+      ),
+    ).rejects.toBeInstanceOf(AssetLoadError);
+
+    expect(created).toHaveLength(1);
+    expect(created[0].src).toBe("");
+  });
+
+  it("still reports progress for a timed out asset", async () => {
+    const onProgress = vi.fn();
+    await expect(
+      loadAssetMap(
+        { hero: "/hero.png" },
+        { ImageConstructor: StallingImage, onProgress, timeoutMs: 10 },
+      ),
+    ).rejects.toBeInstanceOf(AssetLoadError);
+    expect(onProgress).toHaveBeenLastCalledWith({
+      loaded: 1,
+      total: 1,
+      percent: 100,
+    });
+  });
+
+  it("only fails the assets that actually stalled", async () => {
+    class MixedImage {
+      set src(value) {
+        if (value.includes("hero")) queueMicrotask(() => this.onload());
+      }
+    }
+    await expect(
+      loadAssetMap(
+        { hero: "/hero.png", boss: "/boss.png" },
+        { ImageConstructor: MixedImage, timeoutMs: 10 },
+      ),
+    ).rejects.toMatchObject({ missing: ["boss"] });
+  });
+
+  it("names the timed out asset in the reported reason", async () => {
+    await expect(
+      loadImage("/hero.png", StallingImage, 10),
+    ).rejects.toThrow(/hero\.png/);
+  });
+
+  it("clears the timer once an asset resolves", async () => {
+    class InstantImage {
+      set src(_value) {
+        queueMicrotask(() => this.onload());
+      }
+    }
+    const clearSpy = vi.spyOn(globalThis, "clearTimeout");
+    try {
+      await loadAssetMap(
+        { hero: "/hero.png" },
+        { ImageConstructor: InstantImage, timeoutMs: 50_000 },
+      );
+      expect(clearSpy).toHaveBeenCalled();
+    } finally {
+      clearSpy.mockRestore();
+    }
+  });
+
+  it("treats a non-positive timeout as disabled", async () => {
+    class InstantImage {
+      set src(_value) {
+        queueMicrotask(() => this.onload());
+      }
+    }
+    await expect(
+      loadAssetMap(
+        { hero: "/hero.png" },
+        { ImageConstructor: InstantImage, timeoutMs: 0 },
+      ),
+    ).resolves.toMatchObject({ hero: expect.any(InstantImage) });
+  });
+
+  it("exposes a positive default timeout", () => {
+    expect(DEFAULT_ASSET_TIMEOUT_MS).toBeGreaterThan(0);
   });
 });
 
