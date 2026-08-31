@@ -64,6 +64,112 @@ test("fits the canvas and controls inside a short landscape viewport", async ({
   expect(frame.y + frame.height).toBeLessThanOrEqual(667);
 });
 
+async function padBoxes(page) {
+  const [canvas, move, act] = await Promise.all([
+    page.locator("canvas").boundingBox(),
+    page.getByTestId("pad-move").boundingBox(),
+    page.getByTestId("pad-act").boundingBox(),
+  ]);
+  return { canvas, move, act };
+}
+
+test("landscape splits movement and action controls between both hands", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Touch controls render only on touch viewports.");
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+
+  const { canvas, move, act } = await padBoxes(page);
+
+  // Movement stays under the left thumb, actions under the right one.
+  expect(move.x + move.width).toBeLessThanOrEqual(canvas.x + 1);
+  expect(act.x + 1).toBeGreaterThanOrEqual(canvas.x + canvas.width);
+
+  // Neither cluster may cover the play area.
+  expect(move.x).toBeGreaterThanOrEqual(0);
+  expect(act.x + act.width).toBeLessThanOrEqual(844);
+});
+
+test("portrait puts the stage on top and the controls in the thumb zone", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Touch controls render only on touch viewports.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+
+  const { canvas, move, act } = await padBoxes(page);
+
+  // The stage sits near the top instead of floating in dead space.
+  expect(canvas.y).toBeLessThan(844 * 0.25);
+
+  // Both clusters live in the lower third, split left and right.
+  expect(move.y).toBeGreaterThan(844 * 0.55);
+  expect(act.y).toBeGreaterThan(844 * 0.55);
+  expect(move.x + move.width).toBeLessThan(390 / 2);
+  expect(act.x).toBeGreaterThan(390 / 2);
+
+  // Controls never overlap the stage.
+  expect(move.y).toBeGreaterThanOrEqual(canvas.y + canvas.height);
+  expect(act.y).toBeGreaterThanOrEqual(canvas.y + canvas.height);
+});
+
+test("portrait uses the freed space for larger tap targets", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Touch controls render only on touch viewports.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+
+  const sizes = await page
+    .locator("[data-testid='pad-move'] button, [data-testid='pad-act'] button")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const rect = node.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      }),
+    );
+
+  expect(sizes).toHaveLength(4);
+  for (const size of sizes) {
+    expect(size.width).toBeGreaterThanOrEqual(56);
+    expect(size.height).toBeGreaterThanOrEqual(56);
+  }
+});
+
+test("every touch target clears the minimum size in both orientations", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Touch controls render only on touch viewports.");
+  await page.goto("/");
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+    { width: 375, height: 667 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+    const sizes = await page
+      .locator(".touch-button")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const rect = node.getBoundingClientRect();
+          return Math.min(rect.width, rect.height);
+        }),
+      );
+    expect(sizes.length).toBeGreaterThan(0);
+    for (const smallest of sizes) expect(smallest).toBeGreaterThanOrEqual(48);
+  }
+});
+
 test("keyboard focus has a visible focus indicator", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");

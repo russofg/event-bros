@@ -158,12 +158,14 @@ progress {
 .touch-controls {
   display: none;
   inline-size: 100%;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 0.5rem;
   padding-block-end: env(safe-area-inset-bottom);
 }
-.control-group {
+.pad {
   display: flex;
+  align-items: flex-end;
   gap: 0.5rem;
 }
 .touch-button {
@@ -226,18 +228,32 @@ kbd {
   white-space: nowrap;
 }
 
+/* Touch layout, portrait first: the stage hugs the top edge and the controls
+   drop into the thumb zone, split so each hand owns one cluster. */
 @media (hover: none), (pointer: coarse) {
   .touch-controls {
     display: flex;
+    margin-block-start: auto;
   }
   .game-shell {
     justify-content: flex-start;
   }
   .canvas-frame {
-    flex: 1;
+    flex: 0 0 auto;
     min-block-size: 0;
   }
+  .pad-move .touch-button,
+  .pad-act .touch-button {
+    min-inline-size: 64px;
+    min-block-size: 64px;
+  }
+  .pad-utils {
+    flex-direction: column;
+  }
 }
+
+/* Short landscape: the clusters become side columns flanking the stage, so the
+   play area is never covered by a thumb. */
 @media (max-height: 480px) and (orientation: landscape) {
   body {
     padding-block: max(0.25rem, env(safe-area-inset-top))
@@ -245,29 +261,40 @@ kbd {
   }
   .game-shell {
     flex-direction: row;
+    align-items: center;
     gap: 0.5rem;
   }
-  .canvas-frame {
-    block-size: calc(
-      100dvh -
-      0.5rem -
-      env(safe-area-inset-top) -
-      env(safe-area-inset-bottom)
-    );
-  }
-  canvas {
-    inline-size: min(100%, calc((100dvh - 1rem) * 5 / 3));
-    block-size: auto;
-  }
+  /* The wrapper stops generating a box so each cluster becomes a shell column
+     and can be ordered around the stage. */
   .touch-controls {
-    inline-size: auto;
-    block-size: 100%;
-    flex-direction: column;
-    justify-content: space-between;
+    display: contents;
   }
-  .control-group {
-    display: grid;
-    grid-template-columns: repeat(2, 52px);
+  .pad-move {
+    order: 1;
+  }
+  .canvas-frame {
+    order: 2;
+    flex: 1;
+    min-inline-size: 0;
+    block-size: 100%;
+  }
+  /* Crouch above jump in a single column: the right thumb reaches both without
+     the cluster claiming a second column of stage width. */
+  .pad-act {
+    order: 3;
+    flex-direction: column;
+  }
+  .pad-move .touch-button,
+  .pad-act .touch-button {
+    min-inline-size: 52px;
+    min-block-size: 52px;
+  }
+  .pad-utils {
+    position: fixed;
+    inset-block-start: max(0.25rem, env(safe-area-inset-top));
+    inset-inline-start: max(0.25rem, env(safe-area-inset-left));
+    z-index: 10;
+    flex-direction: row;
   }
   .status {
     position: absolute;

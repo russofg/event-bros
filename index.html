@@ -79,7 +79,11 @@
           Cargando el juego.
         </p>
         <div id="touch" class="touch-controls" aria-label="Controles táctiles">
-          <div class="control-group" aria-label="Movimiento">
+          <div
+            class="pad pad-move"
+            data-testid="pad-move"
+            aria-label="Movimiento"
+          >
             <button
               class="touch-button"
               id="bl"
@@ -98,26 +102,12 @@
             >
               ▶
             </button>
-            <button
-              class="touch-button"
-              id="bd"
-              type="button"
-              aria-label="Agacharse"
-              aria-pressed="false"
-            >
-              ▼
-            </button>
-            <button
-              class="touch-button primary"
-              id="bj"
-              type="button"
-              aria-label="Saltar"
-              aria-pressed="false"
-            >
-              A
-            </button>
           </div>
-          <div class="control-group utilities" aria-label="Opciones">
+          <div
+            class="pad pad-utils"
+            data-testid="pad-utils"
+            aria-label="Opciones"
+          >
             <button
               class="touch-button utility"
               id="bp"
@@ -135,6 +125,26 @@
               aria-pressed="false"
             >
               ♫
+            </button>
+          </div>
+          <div class="pad pad-act" data-testid="pad-act" aria-label="Acciones">
+            <button
+              class="touch-button"
+              id="bd"
+              type="button"
+              aria-label="Agacharse"
+              aria-pressed="false"
+            >
+              ▼
+            </button>
+            <button
+              class="touch-button primary"
+              id="bj"
+              type="button"
+              aria-label="Saltar"
+              aria-pressed="false"
+            >
+              A
             </button>
           </div>
         </div>

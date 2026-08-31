@@ -20,6 +20,8 @@ const pauseButton = document.querySelector("#bp"),
  muteButton = document.querySelector("#bm");
 const gameShell = document.querySelector(".game-shell"),
  touchControls = document.querySelector("#touch");
+const padMove = document.querySelector(".pad-move"),
+ padAct = document.querySelector(".pad-act");
 if (ctx) ctx.imageSmoothingEnabled = false;
 let resizeFrame = 0,
  lastFit = "";
@@ -29,12 +31,18 @@ function fitRuntime() {
   shellStyle = getComputedStyle(gameShell);
  const touchRect = touchControls.getBoundingClientRect(),
   statusRect = statusEl.getBoundingClientRect();
- const gap = parseFloat(shellStyle.gap) || 0,
-  isRow = shellStyle.flexDirection === "row";
- const touchVisible = touchRect.width > 0 && touchRect.height > 0;
- const reservedWidth = isRow && touchVisible ? touchRect.width + gap : 0;
- let reservedHeight = 0;
- if (!isRow) {
+ const gap = parseFloat(shellStyle.gap) || 0;
+ // In short landscape the wrapper is display:contents, so every cluster is a
+ // shell column and the reserved space must be measured on the clusters.
+ const sideColumns = getComputedStyle(touchControls).display === "contents";
+ const moveRect = padMove.getBoundingClientRect(),
+  actRect = padAct.getBoundingClientRect();
+ const touchVisible = moveRect.width > 0 && moveRect.height > 0;
+ let reservedWidth = 0,
+  reservedHeight = 0;
+ if (sideColumns) {
+  if (touchVisible) reservedWidth = moveRect.width + actRect.width + gap * 2;
+ } else {
   if (touchVisible) reservedHeight += touchRect.height + gap;
   if (statusRect.height) reservedHeight += statusRect.height + gap;
  }
