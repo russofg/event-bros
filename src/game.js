@@ -1855,6 +1855,12 @@ muteButton.addEventListener("click", () => {
  toggleMute();
 });
 retryButton.addEventListener("click", boot);
+// Older Safari routes pinch through its own gesture events, where touch-action
+// alone does not stop the page from zooming. These are no-ops elsewhere.
+for (const gesture of ["gesturestart", "gesturechange", "gestureend"])
+ document.addEventListener(gesture, (event) => event.preventDefault(), {
+  passive: false,
+ });
 const rotatePrompt = matchMedia("(orientation: portrait) and (pointer: coarse)");
 function rotateHintShowing() {
  return (

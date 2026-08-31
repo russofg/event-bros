@@ -40,9 +40,10 @@ body {
     max(0.5rem, env(safe-area-inset-bottom))
     max(0.5rem, env(safe-area-inset-left));
   overflow: hidden;
-  /* Kills double-tap-to-zoom, which fires on a fast double jump. Pinch zoom
-     stays available, so this costs nothing in accessibility. */
-  touch-action: manipulation;
+  /* No browser gesture starts inside the game: double tap fires on a fast
+     double jump, and a stray second thumb pinches the page. The stage fills the
+     screen, so a zoomed page has no visible way back out of it. */
+  touch-action: none;
   background: radial-gradient(circle at 50% 20%, #18182b 0, #07070f 58%);
 }
 button,

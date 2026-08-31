@@ -262,11 +262,9 @@ test("touch surfaces opt out of the browser's own gestures", async ({
   await page.goto("/");
   await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
 
-  // Double tap on a game surface must not zoom the page.
-  await expect(page.locator("body")).toHaveCSS(
-    "touch-action",
-    "manipulation",
-  );
+  // Neither a double tap nor a stray second thumb may zoom the page: with the
+  // stage filling the screen there is no way back out of a zoom.
+  await expect(page.locator("body")).toHaveCSS("touch-action", "none");
   await expect(page.locator("canvas")).toHaveCSS("touch-action", "none");
 
   const button = page.locator(".touch-button").first();
