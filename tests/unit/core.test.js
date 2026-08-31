@@ -7,7 +7,7 @@ import {
   validateAssets,
 } from "../../src/core/assets.js";
 import { clamp, rectanglesOverlap } from "../../src/core/collision.js";
-import { fitGame } from "../../src/core/layout.js";
+import { chooseView, fitGame } from "../../src/core/layout.js";
 import { watchReducedMotion } from "../../src/core/motion.js";
 import {
   advanceTimer,
@@ -30,6 +30,44 @@ describe("responsive game fit", () => {
 
   it("handles unavailable space without negative dimensions", () => {
     expect(fitGame(320, 40, 80)).toEqual({ width: 0, height: 0, scale: 0 });
+  });
+});
+
+describe("orientation aware viewport", () => {
+  it("keeps the classic wide view on landscape screens", () => {
+    expect(chooseView(844, 390)).toEqual({ width: 960, height: 576 });
+    expect(chooseView(1440, 900)).toEqual({ width: 960, height: 576 });
+  });
+
+  it("treats a square viewport as landscape", () => {
+    expect(chooseView(600, 600)).toEqual({ width: 960, height: 576 });
+  });
+
+  it("narrows the view on a portrait phone so sprites stay legible", () => {
+    const view = chooseView(390, 844);
+    expect(view.width).toBe(480);
+    expect(view.height).toBeGreaterThan(576);
+    expect(view.height).toBeLessThanOrEqual(640);
+  });
+
+  it("never renders more sky than the cap allows", () => {
+    expect(chooseView(320, 1400).height).toBe(640);
+  });
+
+  it("matches a portrait tablet without wasting vertical space", () => {
+    expect(chooseView(768, 1024)).toEqual({ width: 480, height: 640 });
+  });
+
+  it("never returns a view shorter than the level design height", () => {
+    expect(chooseView(500, 501).height).toBeGreaterThanOrEqual(576);
+  });
+
+  it("fits a canvas using the view it is given", () => {
+    expect(fitGame(390, 844, 0, { width: 480, height: 640 })).toEqual({
+      width: 390,
+      height: 520,
+      scale: 0.813,
+    });
   });
 });
 

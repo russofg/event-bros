@@ -34,7 +34,32 @@ npm run preview   # serves the production build locally
 | Pause | `P` | `Ⅱ` |
 | Mute | `M` | `♫` |
 
-Touch controls appear automatically on touch devices and are laid out for landscape play, respecting device safe areas.
+Touch controls appear automatically on touch devices, respecting device safe areas.
+
+---
+
+## Playing on a phone
+
+Both orientations are first-class. The stage is never a postage stamp in one of them.
+
+**The rendered viewport follows the orientation.** A 960×576 view is 5:3, so on a portrait phone it can only ever be as tall as the screen is wide — it used to occupy 26% of the screen. Portrait therefore renders a narrower slice of the world instead:
+
+| Orientation | Rendered view | Share of a 390×844 screen |
+| --- | --- | --- |
+| Landscape | 960×576 | fills the short axis |
+| Portrait | 480×640 | ~62%, up from 26% |
+
+The trade is deliberate: portrait shows less of the level ahead of you, and in exchange the sprites are roughly twice the size. `chooseView` in `src/core/layout.js` owns that decision and is unit tested.
+
+**Controls are split between both thumbs.** Movement sits under the left thumb and the actions under the right one, in both orientations — never both clusters on one side, and never covering the play area.
+
+```
+LANDSCAPE                          PORTRAIT
+                                   ┌──────────────┐
+ [◀][▶]   stage    [▼]             │    stage     │
+                   [A]             └──────────────┘
+                                    [◀][▶]  [▼][A]
+```
 
 ---
 
@@ -60,10 +85,10 @@ The runtime is deliberately split between orchestration and pure logic, so the p
 | Path | Responsibility |
 | --- | --- |
 | `index.html` | Semantic app shell: loading, error recovery, instructions, touch controls |
-| `src/game.js` | Game runtime — rendering, input, audio, level and boss orchestration |
+| `src/game.js` | Game runtime — rendering, input, audio, level and boss orchestration, viewport driven |
 | `src/core/assets.js` | Asset loading with progress reporting, per-asset timeout, and failure handling |
 | `src/core/collision.js` | Deterministic collision resolution |
-| `src/core/layout.js` | Responsive canvas fitting and safe-area math |
+| `src/core/layout.js` | Orientation aware viewport choice and responsive canvas fitting |
 | `src/core/motion.js` | Motion helpers, including reduced-motion behavior |
 | `src/core/state.js` | Score, lives, and progression state transitions |
 | `src/styles.css` | Responsive shell, control states, reduced-motion styles |

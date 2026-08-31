@@ -250,6 +250,14 @@ kbd {
   .pad-utils {
     flex-direction: column;
   }
+  /* On a phone the panel joins the flow below the stage: pinned to a corner it
+     would sit on top of the in-canvas HUD. */
+  .instructions {
+    position: static;
+    max-inline-size: 100%;
+    margin-block: 0.25rem;
+    text-align: center;
+  }
 }
 
 /* Short landscape: the clusters become side columns flanking the stage, so the
@@ -295,6 +303,16 @@ kbd {
     inset-inline-start: max(0.25rem, env(safe-area-inset-left));
     z-index: 10;
     flex-direction: row;
+  }
+  /* Back out of the flow, into the corner the movement cluster leaves free. */
+  .instructions {
+    position: fixed;
+    inset-block-start: auto;
+    inset-block-end: max(0.25rem, env(safe-area-inset-bottom));
+    inset-inline-start: max(0.25rem, env(safe-area-inset-left));
+    inset-inline-end: auto;
+    margin-block: 0;
+    text-align: start;
   }
   .status {
     position: absolute;

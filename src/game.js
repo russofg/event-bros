@@ -1,7 +1,7 @@
 import "./styles.css";
 import { loadAssetMap } from "./core/assets.js";
 import { clamp, rectanglesOverlap } from "./core/collision.js";
-import { fitGame } from "./core/layout.js";
+import { chooseView, fitGame, GAME_HEIGHT } from "./core/layout.js";
 import { watchReducedMotion } from "./core/motion.js";
 import { advanceTimer, decrementLives, transition } from "./core/state.js";
 
@@ -22,9 +22,15 @@ const gameShell = document.querySelector(".game-shell"),
  touchControls = document.querySelector("#touch");
 const padMove = document.querySelector(".pad-move"),
  padAct = document.querySelector(".pad-act");
+const instructionsPanel = document.querySelector(".instructions");
 if (ctx) ctx.imageSmoothingEnabled = false;
 let resizeFrame = 0,
  lastFit = "";
+// Rendered world viewport. Portrait trades horizontal reach for readable
+// sprites, so these follow the orientation instead of staying at 960x576.
+let VIEW_W = 960,
+ VIEW_H = 576,
+ skyOffset = 0;
 function fitRuntime() {
  resizeFrame = 0;
  const shellRect = gameShell.getBoundingClientRect(),
@@ -45,15 +51,36 @@ function fitRuntime() {
  } else {
   if (touchVisible) reservedHeight += touchRect.height + gap;
   if (statusRect.height) reservedHeight += statusRect.height + gap;
+  // The panel only takes shell height while it sits in the flow, and its
+  // height changes whenever the reader opens or closes it.
+  if (getComputedStyle(instructionsPanel).position === "static") {
+   const instructionsRect = instructionsPanel.getBoundingClientRect();
+   if (instructionsRect.height) reservedHeight += instructionsRect.height + gap;
+  }
  }
+ const availableWidth = shellRect.width - reservedWidth - 8;
+ const availableHeight = shellRect.height - reservedHeight - 8;
+ const view = chooseView(availableWidth, availableHeight);
  const fitted = fitGame(
-  shellRect.width - reservedWidth - 8,
+  availableWidth,
   shellRect.height - 8,
   reservedHeight,
+  view,
  );
- const signature = fitted.width + "x" + fitted.height;
+ const signature =
+  view.width + ":" + view.height + ":" + fitted.width + "x" + fitted.height;
  if (signature === lastFit) return;
  lastFit = signature;
+ if (cv.width !== view.width || cv.height !== view.height) {
+  // Resizing the backing store resets every context property, so the pixel art
+  // smoothing flag has to be reapplied right after.
+  cv.width = view.width;
+  cv.height = view.height;
+  if (ctx) ctx.imageSmoothingEnabled = false;
+  VIEW_W = view.width;
+  VIEW_H = view.height;
+  skyOffset = VIEW_H - GAME_HEIGHT;
+ }
  cv.style.inlineSize = fitted.width + "px";
  cv.style.blockSize = fitted.height + "px";
 }
@@ -61,6 +88,7 @@ function scheduleFit() {
  if (!resizeFrame) resizeFrame = requestAnimationFrame(fitRuntime);
 }
 new ResizeObserver(scheduleFit).observe(gameShell);
+instructionsPanel.addEventListener("toggle", scheduleFit);
 window.visualViewport?.addEventListener("resize", scheduleFit);
 addEventListener("orientationchange", scheduleFit);
 scheduleFit();
@@ -490,7 +518,7 @@ function resetPlayer(spawn) {
   crouch: false,
   skid: false,
  };
- camX = clamp(sx - 360, 0, LW * TILE - 960);
+ camX = clamp(sx - VIEW_W * 0.375, 0, Math.max(0, LW * TILE - VIEW_W));
 }
 function buildLevel() {
  grid = Array.from({ length: ROWS }, () => Array(LW).fill(" "));
@@ -1008,7 +1036,7 @@ function checkWin() {
 }
 function camFollow() {
  let lo = 0;
- const hi = LW * TILE - 960;
+ const hi = Math.max(0, LW * TILE - VIEW_W);
  if (bossActive && !bossGone) lo = 150 * TILE;
  const t = clamp(player.x - 360, lo, hi);
  camX += (t - camX) * 0.12;
@@ -1308,26 +1336,28 @@ function toggleMute() {
 /* ========= DIBUJO ========= */
 function draw() {
  ctx.fillStyle = "#07070f";
- ctx.fillRect(0, 0, 960, 576);
+ ctx.fillRect(0, 0, VIEW_W, VIEW_H);
  if (!ready) {
   ctx.fillStyle = "#fff";
   ctx.font = '14px "Press Start 2P",monospace';
   ctx.textAlign = "center";
-  ctx.fillText("CARGANDO ASSETS...", 480, 288);
+  ctx.fillText("CARGANDO ASSETS...", VIEW_W / 2, VIEW_H / 2);
   return;
  }
  if (bgC) {
-  const bw = bgC.width * (576 / bgC.height);
+  const bw = bgC.width * (VIEW_H / bgC.height);
   let off = -((camX * 0.35) % bw);
   if (off > 0) off -= bw;
-  for (let x = off; x < 960; x += bw) ctx.drawImage(bgC, x, 0, bw, 576);
+  for (let x = off; x < VIEW_W; x += bw) ctx.drawImage(bgC, x, 0, bw, VIEW_H);
  }
  ctx.save();
  if (shake > 0 && !reducedMotion)
   ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
- ctx.translate(-Math.round(camX), 0);
+ // skyOffset pins the level to the bottom of the view so the extra portrait
+ // height becomes sky above the stage instead of void below it.
+ ctx.translate(-Math.round(camX), skyOffset);
  const c0 = Math.max(0, Math.floor(camX / TILE) - 1),
-  c1 = Math.min(LW - 1, Math.floor((camX + 960) / TILE) + 1);
+  c1 = Math.min(LW - 1, Math.floor((camX + VIEW_W) / TILE) + 1);
  for (let r = 0; r < ROWS; r++)
   for (let c = c0; c <= c1; c++) {
    const ch = grid[r][c];
@@ -1538,25 +1568,40 @@ function drawPlayer() {
    ctx.fillRect(px + Math.cos(a) * 30 - 3, py + Math.sin(a) * 30 - 3, 6, 6);
   }
 }
+// Sets the largest font at or below `size` that keeps `text` inside the view,
+// so the narrow portrait viewport never clips a message.
+function setFont(size, text) {
+ let px = size;
+ ctx.font = px + 'px "Press Start 2P",monospace';
+ if (!text) return;
+ const max = VIEW_W - 32;
+ while (px > 6 && ctx.measureText(text).width > max) {
+  px -= 1;
+  ctx.font = px + 'px "Press Start 2P",monospace';
+ }
+}
 function drawHUD() {
- ctx.font = '12px "Press Start 2P",monospace';
+ const narrow = VIEW_W < 700;
+ ctx.font = (narrow ? 9 : 12) + 'px "Press Start 2P",monospace';
  ctx.textAlign = "left";
  ctx.fillStyle = "#fff";
  ctx.fillText("SCORE " + String(score).padStart(6, "0"), 16, 26);
- if (itemCells) spr(itemCells[0], 310, 16, 20);
- ctx.fillText("x" + String(mics).padStart(2, "0"), 328, 26);
- if (heroCells[0]) spr(heroCells[0], 480, 15, 26);
- ctx.fillText("x" + lives, 502, 26);
+ const micX = VIEW_W * 0.42,
+  lifeX = VIEW_W * 0.66;
+ if (itemCells) spr(itemCells[0], micX, 16, 20);
+ ctx.fillText("x" + String(mics).padStart(2, "0"), micX + 18, 26);
+ if (heroCells[0]) spr(heroCells[0], lifeX, 15, 26);
+ ctx.fillText("x" + lives, lifeX + 22, 26);
  ctx.textAlign = "right";
- ctx.fillText("TIME " + timer, 944, 26);
+ ctx.fillText("TIME " + timer, VIEW_W - 16, 26);
  ctx.textAlign = "left";
  if (boss && boss.state !== "dead") {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ff5566";
-  ctx.font = '10px "Press Start 2P",monospace';
-  ctx.fillText("EL FEEDBACK · PISADAS RESTANTES", 480, 54);
+  setFont(10, "EL FEEDBACK · PISADAS RESTANTES");
+  ctx.fillText("EL FEEDBACK · PISADAS RESTANTES", VIEW_W / 2, 54);
   const hpWidth = boss.maxHp * 18 + (boss.maxHp - 1) * 4,
-   hpX = 480 - hpWidth / 2;
+   hpX = VIEW_W / 2 - hpWidth / 2;
   for (let i = 0; i < boss.maxHp; i++) {
    ctx.fillStyle = i < boss.hp ? "#ff2222" : "#3a3a4a";
    ctx.fillRect(hpX + i * 22, 60, 18, 8);
@@ -1577,84 +1622,92 @@ function drawHUD() {
    col = "#ffd23f";
   }
   ctx.fillStyle = col;
-  ctx.font = '8px "Press Start 2P",monospace';
-  ctx.fillText(msg, 480, 84);
+  setFont(8, msg);
+  ctx.fillText(msg, VIEW_W / 2, 84);
   if (boss.hint > 0) {
+   const hint = "ESQUIVA → ESPERA QUE CAIGA → PISALO " + boss.maxHp + " VECES";
+   const boxWidth = Math.min(520, VIEW_W - 32);
    ctx.fillStyle = "rgba(5,5,15,0.82)";
-   ctx.fillRect(220, 100, 520, 48);
+   ctx.fillRect(VIEW_W / 2 - boxWidth / 2, 100, boxWidth, 48);
    ctx.fillStyle = "#fff";
-   ctx.font = '9px "Press Start 2P",monospace';
-   ctx.fillText(
-    "ESQUIVA → ESPERA QUE CAIGA → PISALO " + boss.maxHp + " VECES",
-    480,
-    129,
-   );
+   setFont(9, hint);
+   ctx.fillText(hint, VIEW_W / 2, 129);
   }
   ctx.textAlign = "left";
  }
 }
 function drawTitle() {
  ctx.fillStyle = "rgba(5,5,15,0.6)";
- ctx.fillRect(0, 0, 960, 576);
+ ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+ // The title screen is authored against the 960x576 design box and mapped onto
+ // whatever view is active, so it stays composed in both orientations.
+ const cx = VIEW_W / 2,
+  cy = VIEW_H / 2,
+  k = VIEW_W / 960,
+  ax = (x) => x * k;
  ctx.textAlign = "center";
  ctx.fillStyle = "#000";
- ctx.font = '44px "Press Start 2P",monospace';
- ctx.fillText("EVENT BROS", 484, 154);
+ setFont(44, "EVENT BROS");
+ ctx.fillText("EVENT BROS", cx + 4, cy - 134);
  ctx.fillStyle = "#ffd23f";
- ctx.fillText("EVENT BROS", 480, 150);
+ ctx.fillText("EVENT BROS", cx, cy - 138);
  ctx.fillStyle = "#7ef0ff";
- ctx.font = '13px "Press Start 2P",monospace';
- ctx.fillText("SUPER TECNICO DE EVENTOS", 480, 190);
- if (heroCells[0]) spr(heroCells[0], 300, 300, 110);
+ setFont(13, "SUPER TECNICO DE EVENTOS");
+ ctx.fillText("SUPER TECNICO DE EVENTOS", cx, cy - 98);
+ if (heroCells[0]) spr(heroCells[0], ax(300), cy + 12, 110 * k);
  if (foeCells) {
-  spr(foeCells[0], 440, 305, 90);
-  spr(foeCells[2], 560, 305, 90);
+  spr(foeCells[0], ax(440), cy + 17, 90 * k);
+  spr(foeCells[2], ax(560), cy + 17, 90 * k);
  }
- if (bossCells) spr(bossCells[0], 690, 300, 110);
+ if (bossCells) spr(bossCells[0], ax(690), cy + 12, 110 * k);
  if (reducedMotion || (tick >> 5) & 1) {
   ctx.fillStyle = "#fff";
-  ctx.font = '14px "Press Start 2P",monospace';
-  ctx.fillText("PRESIONA ENTER O TOCA PARA EMPEZAR", 480, 422);
+  setFont(14, "PRESIONA ENTER O TOCA PARA EMPEZAR");
+  ctx.fillText("PRESIONA ENTER O TOCA PARA EMPEZAR", cx, cy + 134);
  }
+ const controlsLine =
+  "FLECHAS/A-D MOVER · ESPACIO SALTAR · S/ABAJO AGACHARSE · P PAUSA · M SONIDO";
+ const bossLine =
+  "JEFE: ESQUIVA · ESPERA QUE CAIGA · PISALO " + BOSS_MAX_HP + " VECES";
  ctx.fillStyle = "#9aa0b5";
- ctx.font = '9px "Press Start 2P",monospace';
- ctx.fillText(
-  "FLECHAS/A-D MOVER · ESPACIO SALTAR · S/ABAJO AGACHARSE · P PAUSA · M SONIDO",
-  480,
-  458,
- );
- ctx.fillText("JUNTA MICROS Y LLEGA A LA CONSOLA FOH", 480, 482);
- ctx.fillText(
-  "JEFE: ESQUIVA · ESPERA QUE CAIGA · PISALO " + BOSS_MAX_HP + " VECES",
-  480,
-  506,
- );
+ setFont(9, controlsLine);
+ ctx.fillText(controlsLine, cx, cy + 170);
+ setFont(9, "JUNTA MICROS Y LLEGA A LA CONSOLA FOH");
+ ctx.fillText("JUNTA MICROS Y LLEGA A LA CONSOLA FOH", cx, cy + 194);
+ setFont(9, bossLine);
+ ctx.fillText(bossLine, cx, cy + 218);
 }
 function overlay(t1, t2, col) {
  ctx.fillStyle = "rgba(5,5,15,0.72)";
- ctx.fillRect(0, 0, 960, 576);
+ ctx.fillRect(0, 0, VIEW_W, VIEW_H);
  ctx.textAlign = "center";
  ctx.fillStyle = col;
- ctx.font = '34px "Press Start 2P",monospace';
- ctx.fillText(t1, 480, 250);
+ setFont(34, t1);
+ ctx.fillText(t1, VIEW_W / 2, VIEW_H / 2 - 38);
  ctx.fillStyle = "#fff";
- ctx.font = '11px "Press Start 2P",monospace';
- if (reducedMotion || (tick >> 5) & 1) ctx.fillText(t2, 480, 310);
+ setFont(11, t2);
+ if (reducedMotion || (tick >> 5) & 1)
+  ctx.fillText(t2, VIEW_W / 2, VIEW_H / 2 + 22);
 }
 function drawWin() {
  ctx.fillStyle = "rgba(5,5,15,0.72)";
- ctx.fillRect(0, 0, 960, 576);
+ ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+ const cx = VIEW_W / 2,
+  cy = VIEW_H / 2;
  ctx.textAlign = "center";
  ctx.fillStyle = "#ffd23f";
- ctx.font = '34px "Press Start 2P",monospace';
- ctx.fillText("¡SHOW SALVADO!", 480, 210);
+ setFont(34, "¡SHOW SALVADO!");
+ ctx.fillText("¡SHOW SALVADO!", cx, cy - 78);
  ctx.fillStyle = "#7ef0ff";
- ctx.font = '13px "Press Start 2P",monospace';
- ctx.fillText("BONUS TIEMPO: " + bonus, 480, 270);
+ setFont(13, "BONUS TIEMPO: " + bonus);
+ ctx.fillText("BONUS TIEMPO: " + bonus, cx, cy - 18);
  ctx.fillStyle = "#fff";
- ctx.fillText("SCORE FINAL: " + score, 480, 300);
- if (reducedMotion || (tick >> 5) & 1)
-  ctx.fillText("ENTER PARA TOCAR DE NUEVO", 480, 360);
+ setFont(13, "SCORE FINAL: " + score);
+ ctx.fillText("SCORE FINAL: " + score, cx, cy + 12);
+ if (reducedMotion || (tick >> 5) & 1) {
+  setFont(13, "ENTER PARA TOCAR DE NUEVO");
+  ctx.fillText("ENTER PARA TOCAR DE NUEVO", cx, cy + 72);
+ }
 }
 
 /* ========= LOOP ========= */
@@ -1684,7 +1737,7 @@ function update() {
   updParts();
   if (stateTimer > 110) afterDeath();
  } else if (state === "title") {
-  camX = reducedMotion ? 0 : (tick * 0.6) % (LW * TILE - 960);
+  camX = reducedMotion ? 0 : (tick * 0.6) % Math.max(1, LW * TILE - VIEW_W);
  }
  if (tick % 30 === 0) updateGameplayState();
  if (pendingGameplayAnnouncement && tick - lastGameplayAnnouncementTick >= 60) {

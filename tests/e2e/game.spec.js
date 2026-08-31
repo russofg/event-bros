@@ -58,10 +58,57 @@ test("fits the canvas and controls inside a short landscape viewport", async ({
     .poll(() => canvasLocator.evaluate((element) => element.style.inlineSize))
     .not.toBe(firstInlineSize);
   const resizedCanvas = await canvasLocator.boundingBox();
-  expect(resizedCanvas.width / resizedCanvas.height).toBeCloseTo(5 / 3, 1);
+  // Portrait renders the narrow view, so the stage is taller than it is wide.
+  expect(resizedCanvas.width / resizedCanvas.height).toBeLessThan(1);
 
   const frame = await page.getByTestId("canvas-frame").boundingBox();
   expect(frame.y + frame.height).toBeLessThanOrEqual(667);
+});
+
+function renderedView(page) {
+  return page
+    .locator("canvas")
+    .evaluate((canvas) => `${canvas.width}x${canvas.height}`);
+}
+
+test("switches the rendered viewport with the orientation", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Touch controls render only on touch viewports.");
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+  await expect.poll(() => renderedView(page)).toBe("960x576");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => renderedView(page)).not.toBe("960x576");
+
+  const portrait = await page
+    .locator("canvas")
+    .evaluate((canvas) => ({ w: canvas.width, h: canvas.height }));
+  expect(portrait.w).toBe(480);
+  expect(portrait.h).toBeGreaterThan(576);
+  expect(portrait.h).toBeLessThanOrEqual(640);
+
+  // Rotating back must restore the wide view, not keep the narrow one.
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect.poll(() => renderedView(page)).toBe("960x576");
+});
+
+test("portrait stage covers most of the screen", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Touch controls render only on touch viewports.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+
+  const canvas = await page.locator("canvas").boundingBox();
+  // Before the orientation aware viewport this was 220px, about 26% of the screen.
+  expect(canvas.height).toBeGreaterThan(844 * 0.5);
+  expect(canvas.width).toBeGreaterThan(390 * 0.9);
 });
 
 async function padBoxes(page) {
