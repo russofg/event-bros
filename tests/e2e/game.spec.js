@@ -292,6 +292,62 @@ test("landscape keeps the controls at the bottom corners", async ({
   expect(act.y + act.height).toBeGreaterThan(390 * 0.8);
 });
 
+function rotateHint(page) {
+  return page.getByRole("dialog", { name: /Girá el celular/i });
+}
+
+test("portrait asks for landscape and clears itself on rotation", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "The hint targets touch viewports.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+  await expect(rotateHint(page)).toBeVisible();
+
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(rotateHint(page)).toBeHidden();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(rotateHint(page)).toBeVisible();
+});
+
+test("the hint can be dismissed to keep playing in portrait", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "The hint targets touch viewports.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+
+  await page.getByRole("button", { name: "Jugar en vertical igual" }).click();
+  await expect(rotateHint(page)).toBeHidden();
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator("body")).toHaveAttribute("data-game-state", "play");
+});
+
+test("rotating into portrait pauses a running game", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "The hint targets touch viewports.");
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("body")).toHaveAttribute("data-game-state", "play");
+
+  // Losing a life to a level you cannot see would be the worst outcome here.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-game-state",
+    "pause",
+  );
+});
+
 test("keyboard focus has a visible focus indicator", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");

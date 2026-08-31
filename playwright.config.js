@@ -12,7 +12,7 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     {
       name: "mobile-chromium",
-      use: { ...devices["Pixel 5"], landscape: true },
+      use: { ...devices["Pixel 5 landscape"] },
     },
   ],
   outputDir: "playwright-results",

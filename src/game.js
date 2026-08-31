@@ -286,6 +286,9 @@ function syncState() {
  document.body.dataset.gameState = state;
  document.body.dataset.ready = String(ready);
  document.body.dataset.muted = String(muted);
+ // A failed load owns the screen: asking for a rotation on top of an error
+ // would bury the retry button behind the hint.
+ document.body.dataset.loadError = String(!errorPanel.hidden);
  pauseButton.setAttribute("aria-pressed", String(state === "pause"));
  muteButton.setAttribute("aria-pressed", String(muted));
  updateGameplayState();
@@ -1852,6 +1855,27 @@ muteButton.addEventListener("click", () => {
  toggleMute();
 });
 retryButton.addEventListener("click", boot);
+const rotatePrompt = matchMedia("(orientation: portrait) and (pointer: coarse)");
+function rotateHintShowing() {
+ return (
+  rotatePrompt.matches && document.body.dataset.rotateDismissed !== "true"
+ );
+}
+function syncRotateHint() {
+ // Rotating mid level hides the stage behind the hint, so pause instead of
+ // letting the player lose a life to a screen they cannot see.
+ if (rotateHintShowing() && state === "play") {
+  clearInput();
+  togglePause();
+ }
+ scheduleFit();
+}
+rotatePrompt.addEventListener("change", syncRotateHint);
+document.querySelector("#rotate-dismiss").addEventListener("click", () => {
+ document.body.dataset.rotateDismissed = "true";
+ scheduleFit();
+ setStatus("Seguís en vertical. Podés girar el celular cuando quieras.");
+});
 cv.addEventListener("pointerdown", () => {
  audio();
  if (state === "title" || state === "gameover" || state === "win") startNow();

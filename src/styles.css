@@ -246,6 +246,72 @@ kbd {
   border-radius: 0.2rem;
   background: #29293d;
 }
+/* Rotation hint. Hidden everywhere except a portrait touch screen, and always
+   dismissible: a reader with orientation lock on must still be able to play. */
+.rotate-hint {
+  position: fixed;
+  z-index: 30;
+  display: none;
+  inset: 0;
+  place-items: center;
+  padding: 1.5rem;
+  background: #05050ff5;
+}
+.rotate-hint-panel {
+  display: grid;
+  max-inline-size: 22rem;
+  justify-items: center;
+  gap: 1.25rem;
+  padding: 1.75rem 1.25rem;
+  border: 4px solid var(--yellow);
+  background: var(--panel);
+  box-shadow: 0 0 0 4px #05050f, 0 1rem 3rem #000c;
+  text-align: center;
+}
+.rotate-phone {
+  inline-size: 2.75rem;
+  block-size: 4.75rem;
+  border: 4px solid var(--cyan);
+  border-radius: 0.35rem;
+  box-shadow: inset 0 0 0 3px #05050f;
+  animation: rotate-phone 2.4s ease-in-out infinite;
+}
+.rotate-hint h2 {
+  margin: 0;
+  color: var(--yellow);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.rotate-hint p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.6rem;
+  line-height: 1.9;
+}
+.rotate-hint button {
+  min-block-size: 48px;
+  padding: 0.8rem 1rem;
+  border: 3px solid var(--border);
+  color: var(--cyan);
+  background: #1b1b2e;
+  font-size: 0.55rem;
+  line-height: 1.6;
+}
+@keyframes rotate-phone {
+  0%,
+  35% {
+    transform: rotate(0deg);
+  }
+  65%,
+  100% {
+    transform: rotate(-90deg);
+  }
+}
+@media (orientation: portrait) and (pointer: coarse) {
+  body:not([data-rotate-dismissed="true"]):not([data-load-error="true"]) .rotate-hint {
+    display: grid;
+  }
+}
 .sr-only {
   position: absolute;
   width: 1px;

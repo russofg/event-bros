@@ -40,25 +40,30 @@ Touch controls appear automatically on touch devices, respecting device safe are
 
 ## Playing on a phone
 
-Both orientations are first-class. The stage is never a postage stamp in one of them.
+**Landscape is how the game is meant to be held, and portrait says so.** A 960×576 view is 5:3, so on a portrait phone the stage can only ever be as tall as the screen is wide. A portrait visitor gets an in-style panel asking them to turn the phone.
 
-**The rendered viewport follows the orientation.** A 960×576 view is 5:3, so on a portrait phone it can only ever be as tall as the screen is wide — it used to occupy 26% of the screen. Portrait therefore renders a narrower slice of the world instead:
+The panel is never a dead end. It can be dismissed — orientation lock is a real accessibility setting, and a player who cannot rotate must still be able to play — and dismissing it drops into a narrower rendered view:
 
 | Orientation | Rendered view | Share of a 390×844 screen |
 | --- | --- | --- |
 | Landscape | 960×576 | fills the short axis |
-| Portrait | 480×640 | ~62%, up from 26% |
+| Portrait, dismissed | 480×640 | ~62%, up from 26% |
 
 The trade is deliberate: portrait shows less of the level ahead of you, and in exchange the sprites are roughly twice the size. `chooseView` in `src/core/layout.js` owns that decision and is unit tested.
 
+Rotating into portrait mid-level pauses the game rather than letting a player lose a life to a stage hidden behind the panel. A failed asset load outranks the panel, so the retry button is never buried.
+
 **Controls are split between both thumbs.** Movement sits under the left thumb and the actions under the right one, in both orientations — never both clusters on one side, and never covering the play area.
+
+Both clusters sit at the bottom corners, where the hands already rest.
 
 ```
 LANDSCAPE                          PORTRAIT
-                                   ┌──────────────┐
- [◀][▶]   stage    [▼]             │    stage     │
-                   [A]             └──────────────┘
-                                    [◀][▶]  [▼][A]
+ [Ⅱ][♫]                            ┌──────────────┐
+                                   │    stage     │
+          stage                    └──────────────┘
+                                        [Ⅱ][♫]
+ [◀][▶]              [▼][A]         [◀][▶]  [▼][A]
 ```
 
 ---
@@ -70,7 +75,7 @@ LANDSCAPE                          PORTRAIT
 | Runtime | Vanilla JavaScript (ES modules), HTML Canvas 2D |
 | Build | Vite 6, `es2020` target |
 | Unit tests | Vitest |
-| End-to-end tests | Playwright (Chromium: desktop + mobile landscape) |
+| End-to-end tests | Playwright (Chromium: desktop + Pixel 5 landscape) |
 | Linting | ESLint 9 flat config |
 | Dependencies at runtime | **None** |
 
@@ -127,7 +132,7 @@ npm run build     # production build
 
 - [ ] `npm run lint` reports no findings
 - [ ] Unit tests pass
-- [ ] E2E tests pass (one desktop-only touch test skips intentionally)
+- [ ] E2E tests pass (touch-only tests skip on the desktop project by design)
 - [ ] `npm run build` produces `dist/`
 
 Playwright needs Chromium. If it is missing, install only that browser:
