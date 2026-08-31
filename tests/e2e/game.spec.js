@@ -256,6 +256,42 @@ test("controls stay reachable when browser chrome eats the viewport", async ({
   }
 });
 
+test("touch surfaces opt out of the browser's own gestures", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+
+  // Double tap on a game surface must not zoom the page.
+  await expect(page.locator("body")).toHaveCSS(
+    "touch-action",
+    "manipulation",
+  );
+  await expect(page.locator("canvas")).toHaveCSS("touch-action", "none");
+
+  const button = page.locator(".touch-button").first();
+  await expect(button).toHaveCSS("touch-action", "none");
+  // Holding a direction is a gesture, not a text selection.
+  await expect(button).toHaveCSS("user-select", "none");
+  await expect(button).toHaveCSS("-webkit-user-select", "none");
+  await expect(button).toHaveCSS("-webkit-tap-highlight-color", "rgba(0, 0, 0, 0)");
+});
+
+test("landscape keeps the controls at the bottom corners", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Touch controls render only on touch viewports.");
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+
+  const { move, act } = await padBoxes(page);
+  // Hands rest at the bottom corners of a phone held sideways, not mid screen.
+  expect(move.y + move.height).toBeGreaterThan(390 * 0.8);
+  expect(act.y + act.height).toBeGreaterThan(390 * 0.8);
+});
+
 test("keyboard focus has a visible focus indicator", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");

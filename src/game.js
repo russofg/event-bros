@@ -1345,8 +1345,10 @@ function draw() {
   return;
  }
  if (bgC) {
-  const bw = bgC.width * (VIEW_H / bgC.height);
-  let off = -((camX * 0.35) % bw);
+  // Integer width and offset: a fractional blit leaves a seam between the
+  // parallax tiles, which reads as a tear in the sky while scrolling.
+  const bw = Math.ceil(bgC.width * (VIEW_H / bgC.height));
+  let off = -Math.round((camX * 0.35) % bw);
   if (off > 0) off -= bw;
   for (let x = off; x < VIEW_W; x += bw) ctx.drawImage(bgC, x, 0, bw, VIEW_H);
  }
