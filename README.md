@@ -1,6 +1,12 @@
 # Event Bros
 
-A portable static platform game about live-event production. The production build preserves the original Spanish game, pixel art, keyboard and touch controls, scoring, audio, level, and boss encounter while adding resilient loading and accessible companion UI.
+> **Súper Técnico de Eventos** — a pixel-art platform game about the people who actually make live events happen.
+
+You are the technical crew. Collect microphones, survive the **Feedback** boss, and reach the FOH console before the show starts. It runs entirely in the browser: no backend, no service worker, no telemetry, no tracking.
+
+The game is played in Spanish. The codebase, tests, and documentation are in English.
+
+---
 
 ## Quick path
 
@@ -9,32 +15,137 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. Press **Enter** to start; use arrow keys or A/D to move, Space/W/Up to jump, P to pause, and M to mute.
-
-## Verification
+Open the URL Vite prints, press **Enter**, and you are playing.
 
 ```bash
-npm run lint
-npm test
-npm run test:e2e
-npm run build
-npm run preview
+npm run build     # emits dist/
+npm run preview   # serves the production build locally
 ```
 
-Playwright uses Chromium in desktop and mobile-landscape profiles. If Chromium is not installed locally, install only that browser with `npx playwright install chromium`.
+---
+
+## Controls
+
+| Action | Keyboard | Touch |
+| --- | --- | --- |
+| Move | `←` `→` or `A` `D` | `◀` `▶` |
+| Jump | `Space`, `W` or `↑` | `A` |
+| Crouch | `S` or `↓` | `▼` |
+| Pause | `P` | `Ⅱ` |
+| Mute | `M` | `♫` |
+
+Touch controls appear automatically on touch devices and are laid out for landscape play, respecting device safe areas.
+
+---
+
+## Stack
+
+| Area | Choice |
+| --- | --- |
+| Runtime | Vanilla JavaScript (ES modules), HTML Canvas 2D |
+| Build | Vite 6, `es2020` target |
+| Unit tests | Vitest |
+| End-to-end tests | Playwright (Chromium: desktop + mobile landscape) |
+| Linting | ESLint 9 flat config |
+| Dependencies at runtime | **None** |
+
+Every dependency in `package.json` is a `devDependency`. What ships to the browser is HTML, CSS, JavaScript, and seven PNGs.
+
+---
 
 ## Architecture
 
-| Area | Responsibility |
+The runtime is deliberately split between orchestration and pure logic, so the parts worth testing are testable without a canvas.
+
+| Path | Responsibility |
 | --- | --- |
-| `index.html` | Semantic app shell, loading/error recovery, instructions, and accessible controls |
-| `src/game.js` | Encapsulated game runtime, rendering, input, audio, and level orchestration |
-| `src/core/` | Deterministic state, layout, collision, asset-loading, and motion helpers |
-| `src/styles.css` | Responsive canvas shell, safe areas, control states, and reduced-motion behavior |
-| `tests/unit/` | Vitest regression coverage for deterministic logic |
-| `tests/e2e/` | Playwright user flows, error recovery, responsive layout, and semantics |
-| `public/assets/` | Only runtime-referenced, delivery-optimized artwork |
+| `index.html` | Semantic app shell: loading, error recovery, instructions, touch controls |
+| `src/game.js` | Game runtime — rendering, input, audio, level and boss orchestration |
+| `src/core/assets.js` | Asset loading with progress reporting and failure handling |
+| `src/core/collision.js` | Deterministic collision resolution |
+| `src/core/layout.js` | Responsive canvas fitting and safe-area math |
+| `src/core/motion.js` | Motion helpers, including reduced-motion behavior |
+| `src/core/state.js` | Score, lives, and progression state transitions |
+| `src/styles.css` | Responsive shell, control states, reduced-motion styles |
+| `public/assets/` | The seven artwork files actually referenced at runtime (2.7 MiB total) |
 
-## Static deployment
+`src/core/` holds pure functions with no DOM or canvas access. That is what `tests/unit/` covers.
 
-Run `npm run build` and publish the generated `dist/` directory on any static host. No backend, service worker, telemetry, or provider-specific runtime is required.
+---
+
+## Accessibility
+
+Accessibility here is not a checkbox pass — the canvas is unreadable to a screen reader by design, so the game exposes a parallel, queryable description of itself.
+
+| Concern | How it is handled |
+| --- | --- |
+| Canvas-only state | A live companion region reports progress, position, score, lives, time, hazards, the current objective, and boss guidance |
+| Announcement noise | Updates are cadence-controlled, so assistive tech is informed without being flooded |
+| Unsupported canvas | Semantic recovery with an actionable message instead of a silent blank frame |
+| Asset failures | Explicit error panel with a working retry, never an infinite spinner |
+| Reduced motion | `prefers-reduced-motion` is honored dynamically, including camera movement |
+| Keyboard | Skip link, visible focus, and full keyboard play without touch |
+
+---
+
+## Verification
+
+Run these before opening a pull request. All four should pass on a clean tree.
+
+```bash
+npm run lint      # ESLint
+npm test          # Vitest unit suite
+npm run test:e2e  # Playwright user flows
+npm run build     # production build
+```
+
+- [ ] `npm run lint` reports no findings
+- [ ] Unit tests pass
+- [ ] E2E tests pass (one desktop-only touch test skips intentionally)
+- [ ] `npm run build` produces `dist/`
+
+Playwright needs Chromium. If it is missing, install only that browser:
+
+```bash
+npx playwright install chromium
+```
+
+---
+
+## Deployment
+
+```bash
+npm run build
+```
+
+Publish `dist/` on any static host — GitHub Pages, Netlify, Vercel, S3, nginx. Nothing else is required.
+
+> **Note:** asset URLs are currently root-absolute. Hosting under a subpath (for example `example.com/games/event-bros/`) needs a Vite `base` configuration first.
+
+---
+
+## Known limitations
+
+Tracked deliberately, not hidden:
+
+- Asset loading has no timeout — a stalled network keeps the loader visible.
+- The very first touch input after load can be dropped.
+- Subpath hosting requires the `base` configuration noted above.
+
+---
+
+## Project layout
+
+```
+event-bros/
+├── index.html            # app shell
+├── src/
+│   ├── game.js           # runtime
+│   ├── core/             # pure, tested logic
+│   └── styles.css
+├── public/assets/        # runtime artwork
+├── tests/
+│   ├── unit/             # Vitest
+│   └── e2e/              # Playwright
+└── vite.config.js
+```
