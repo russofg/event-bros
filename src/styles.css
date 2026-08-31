@@ -21,7 +21,19 @@ html {
   background: #07070f;
 }
 body {
-  min-height: 100dvh;
+  /* svh, not dvh: the small viewport is the height with the browser chrome
+     fully expanded. Sizing to the dynamic height lets iOS Safari push the
+     controls under its toolbar the moment the toolbar comes back, and
+     overflow:hidden makes them unreachable.
+     The flex column is what bounds the stage: main fills the padded body box
+     instead of growing to fit the canvas, so the shell can never inflate past
+     the screen and drag the controls out of reach with it. */
+  display: flex;
+  flex-direction: column;
+  /* A fixed height, not a minimum: min-height is a floor, so the body grew to
+     whatever the stage asked for and pushed the controls off screen. */
+  block-size: 100vh;
+  block-size: 100svh;
   margin: 0;
   padding: max(0.5rem, env(safe-area-inset-top))
     max(0.5rem, env(safe-area-inset-right))
@@ -65,7 +77,8 @@ a:focus-visible {
 }
 main {
   display: flex;
-  min-height: calc(100dvh - 1rem);
+  min-block-size: 0;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;

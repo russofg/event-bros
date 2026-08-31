@@ -217,6 +217,45 @@ test("every touch target clears the minimum size in both orientations", async ({
   }
 });
 
+test("controls stay reachable when browser chrome eats the viewport", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Touch controls render only on touch viewports.");
+  await page.goto("/");
+
+  // A phone screen is 844 tall, but Safari keeps a slice for its toolbars and
+  // the page never scrolls, so anything past the fold is simply unreachable.
+  for (const height of [844, 760, 700, 640, 600]) {
+    await page.setViewportSize({ width: 390, height });
+    await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
+
+    // Refitting runs through a ResizeObserver and an animation frame, so poll
+    // instead of reading the layout the instant the viewport changes.
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const limit = window.innerHeight;
+          const lowestButton = [
+            ...document.querySelectorAll(".touch-button"),
+          ].reduce(
+            (max, node) => Math.max(max, node.getBoundingClientRect().bottom),
+            0,
+          );
+          const frame = document
+            .querySelector("[data-testid='canvas-frame']")
+            .getBoundingClientRect();
+          return Math.max(
+            lowestButton - limit,
+            frame.bottom - limit,
+            document.documentElement.scrollHeight - limit,
+          );
+        }),
+      )
+      .toBeLessThanOrEqual(0);
+  }
+});
+
 test("keyboard focus has a visible focus indicator", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");
