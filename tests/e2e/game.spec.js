@@ -181,7 +181,9 @@ test("reports an actionable error when the gameplay canvas is unsupported", asyn
     "unsupported",
   );
   await expect(page.locator("body")).toHaveAttribute("data-ready", "false");
-  await expect(page.getByRole("button", { name: "Reintentar carga" })).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Reintentar carga" }),
+  ).toBeHidden();
   expect(pageErrors).toEqual([]);
 });
 

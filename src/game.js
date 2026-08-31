@@ -144,10 +144,12 @@ function queueGameplayAnnouncement(message) {
 function directionAndDistance(fromX, targetX) {
  const blocks = Math.max(0, Math.round(Math.abs(targetX - fromX) / TILE));
  if (blocks === 0) return "en tu posición";
- return (targetX > fromX ? "a la derecha" : "a la izquierda") +
+ return (
+  (targetX > fromX ? "a la derecha" : "a la izquierda") +
   ", a " +
   blocks +
-  (blocks === 1 ? " bloque" : " bloques");
+  (blocks === 1 ? " bloque" : " bloques")
+ );
 }
 function bossInstruction() {
  if (!boss || boss.state === "dead") return "";
@@ -234,8 +236,11 @@ function updateGameplayState() {
   hazardText,
   objectiveText,
   bossText,
- ].filter(Boolean).join(" ");
- if (gameplayStateEl.textContent !== summary) gameplayStateEl.textContent = summary;
+ ]
+  .filter(Boolean)
+  .join(" ");
+ if (gameplayStateEl.textContent !== summary)
+  gameplayStateEl.textContent = summary;
  if (boss && boss.state !== "dead" && boss.state !== lastAnnouncedBossState) {
   lastAnnouncedBossState = boss.state;
   queueGameplayAnnouncement(bossInstruction());
@@ -1674,10 +1679,7 @@ function update() {
   camX = reducedMotion ? 0 : (tick * 0.6) % (LW * TILE - 960);
  }
  if (tick % 30 === 0) updateGameplayState();
- if (
-  pendingGameplayAnnouncement &&
-  tick - lastGameplayAnnouncementTick >= 60
- ) {
+ if (pendingGameplayAnnouncement && tick - lastGameplayAnnouncementTick >= 60) {
   setStatus(pendingGameplayAnnouncement);
   pendingGameplayAnnouncement = "";
   lastGameplayAnnouncementTick = tick;
