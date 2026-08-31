@@ -114,13 +114,39 @@ npx playwright install chromium
 
 ## Deployment
 
+### Netlify
+
+The repository is deploy-ready. `netlify.toml` holds the entire configuration, so nothing needs to be set in the Netlify UI:
+
+| Setting | Value | Source |
+| --- | --- | --- |
+| Build command | `npm run build` | `netlify.toml` |
+| Publish directory | `dist` | `netlify.toml` |
+| Node version | `22` | `netlify.toml`, `.nvmrc`, `engines` |
+
+Connect the repository in Netlify and deploy. There is no SPA redirect rule because the site is a single document with no client-side router.
+
+### Any other static host
+
 ```bash
 npm run build
 ```
 
-Publish `dist/` on any static host — GitHub Pages, Netlify, Vercel, S3, nginx. Nothing else is required.
+Publish `dist/`. No backend, service worker, telemetry, or provider-specific runtime is required.
 
-> **Note:** asset URLs are currently root-absolute. Hosting under a subpath (for example `example.com/games/event-bros/`) needs a Vite `base` configuration first.
+> **Note:** asset URLs are root-absolute, which is correct for a root domain. Hosting under a subpath (for example `example.com/games/event-bros/`) needs a Vite `base` configuration first.
+
+### Caching model
+
+Build output is split into two directories on purpose, because the two halves have different cache lifetimes:
+
+| Path | Contents | Policy |
+| --- | --- | --- |
+| `/build/*` | Vite bundles, content-hashed | `immutable`, one year |
+| `/assets/*` | Artwork from `public/`, **not** hashed | `max-age=0, must-revalidate` |
+| `/index.html` | Entry document | `max-age=0, must-revalidate` |
+
+Caching `/assets/*` as immutable would permanently pin the artwork: the filenames never change when the art does. That is why `build.assetsDir` is set to `build` in `vite.config.js` — it keeps the two policies separable.
 
 ---
 

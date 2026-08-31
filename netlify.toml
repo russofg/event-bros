@@ -1,0 +1,39 @@
+# Netlify deployment configuration for Event Bros.
+# Static site: no backend, no functions, no environment secrets.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Pinned so a change to Netlify's default image never breaks the build.
+  # Keep in sync with .nvmrc and package.json engines.
+  NODE_VERSION = "22"
+
+# Content-hashed bundles. The filename changes whenever the content does,
+# so these are safe to cache permanently.
+[[headers]]
+  for = "/build/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Artwork copied from public/ is NOT content-hashed: the filenames stay the
+# same across deploys. Cache it, but always revalidate so new art ships.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# The entry document must never be cached, or clients keep loading a stale
+# document that points at bundles which no longer exist.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
